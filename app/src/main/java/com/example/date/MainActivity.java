@@ -1,5 +1,6 @@
 package com.example.date;
 
+import android.annotation.SuppressLint;
 import android.os.Bundle;
 
 import androidx.activity.EdgeToEdge;
@@ -9,7 +10,6 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import android.content.SharedPreferences;
-
 
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -21,7 +21,6 @@ import android.widget.TextView;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Locale;
@@ -30,7 +29,7 @@ public class MainActivity extends AppCompatActivity {
     private CalendarView calendarView;
     private TextView selectedDate;
     private EditText eventInput;
-    private Button addEventButton, themeToggleButton;
+    private Button addEventButton, deleteEventButton, themeToggleButton;
     private ListView eventList;
 
     private ArrayAdapter<String> adapter;
@@ -39,6 +38,7 @@ public class MainActivity extends AppCompatActivity {
 
     private SharedPreferences sharedPreferences;
 
+    @SuppressLint("MissingInflatedId")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -49,13 +49,15 @@ public class MainActivity extends AppCompatActivity {
         selectedDate = findViewById(R.id.selectedDate);
         eventInput = findViewById(R.id.eventInput);
         addEventButton = findViewById(R.id.addEventButton);
+        deleteEventButton = findViewById(R.id.deleteEventButton);
         themeToggleButton = findViewById(R.id.themeToggleButton);
         eventList = findViewById(R.id.eventList);
 
         eventsMap = new HashMap<>();
         events = new ArrayList<>();
-        adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, events);
+        adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_single_choice, events);
         eventList.setAdapter(adapter);
+        eventList.setChoiceMode(ListView.CHOICE_MODE_SINGLE); // Позволяет выбирать одно событие
 
         sharedPreferences = getSharedPreferences("MyCalendarApp", MODE_PRIVATE);
         loadEvents();
@@ -76,7 +78,20 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        // Удаление выбранного события
+        deleteEventButton.setOnClickListener(v -> {
+            String selectedDateString = selectedDate.getText().toString();
+            int selectedPosition = eventList.getCheckedItemPosition(); // Получаем позицию выбранного события
+            if (selectedPosition >= 0) {
+                String eventToRemove = events.get(selectedPosition); // Получаем событие по позиции
+                removeEvent(selectedDateString, eventToRemove);
+                eventList.clearChoices(); // Сбрасываем выбор
+                adapter.notifyDataSetChanged(); // Обновляем список
+            }
+        });
+
         themeToggleButton.setOnClickListener(v -> toggleTheme());
+
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
@@ -90,6 +105,14 @@ public class MainActivity extends AppCompatActivity {
         eventsMap.get(date).add(event);
         saveEvents();
         updateEventList(date);
+    }
+
+    private void removeEvent(String date, String event) {
+        if (eventsMap.containsKey(date)) {
+            eventsMap.get(date).remove(event);
+            saveEvents();
+            updateEventList(date);
+        }
     }
 
     private void updateEventList(String date) {
